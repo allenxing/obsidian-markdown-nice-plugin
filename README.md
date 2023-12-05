@@ -18,6 +18,10 @@
 
 ## 截图预览
 
+![preview](./preview/preview-md.png)
+![command](./preview/command.png)
+![setting](./preview/setting.png)
+![copy](./preview/copy.png)
 
 ## Donation
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/allenxing)
