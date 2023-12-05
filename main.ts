@@ -1,62 +1,70 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, FileSystemAdapter, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { markdownParser } from './utils/hepler';
+import { solveHtml } from './utils/converter';
+import * as path from 'path';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+interface MarkdownNiceSettings {
+	currentTheme: string;
+}
+const defaultPrefix = '.obsidian/plugins/obsidian-markdown-nice-plugin/theme/';
+const DEFAULT_SETTINGS: MarkdownNiceSettings = {
+	currentTheme: `${defaultPrefix}/default.css`
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class MarkdownNicePlugin extends Plugin {
+	settings: MarkdownNiceSettings;
 
 	async onload() {
 		await this.loadSettings();
+		const adapter: FileSystemAdapter = this.app.vault.adapter as FileSystemAdapter;
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
+		// 	new Notice('This is a notice!');
+		// });
+		// ribbonIconEl.addClass('my-plugin-ribbon-class');
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
+		statusBarItemEl.setText('Markdown nice for wechat');
+		const themes: Record<string, string> = {};
+		try {
+			const themeDir = await adapter.list(`${defaultPrefix}`);
+				if (themeDir && themeDir.files && themeDir.files.length > 0) {
+					themeDir.files.forEach(item => {
+						const fileName = path.basename(item);
+						const extension = path.extname(item).slice(1);
+						if (extension === 'css') {
+							themes[fileName] = fileName;
+						}
+					})
+				this.addSettingTab(new SettingTab(this.app, themes, this));
+				}
+			
+		} catch (error) {
+			console.error(error)
+		}
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
+			id: 'copy to wechat',
+			name: '复制到公众号',
+			editorCheckCallback:  (checking: boolean, editor: Editor) => {
 				// Conditions to check
 				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
 					// If checking is false, then we want to actually perform the operation.
 					if (!checking) {
-						new SampleModal(this.app).open();
+						try {
+							adapter.read(`${defaultPrefix}/${this.settings.currentTheme}`).then(content => {
+								navigator.clipboard.writeText(solveHtml(markdownParser.render(editor.getValue()), content));
+								new Notice('复制成功');
+							}).catch(error => {
+								console.log(error);
+								new Notice('复制失败');
+							});
+						} catch (error) {
+							console.log(error);
+							new Notice('复制失败');
+						}
 					}
 
 					// This command will only show up in Command Palette when the check function returns true
@@ -64,18 +72,24 @@ export default class MyPlugin extends Plugin {
 				}
 			}
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
+		// This adds a complex command that can check whether the current state of the app allows execution of the command
+		this.addCommand({
+			id: 'open preview',
+			name: '预览公众号样式',
+			editorCheckCallback: (checking: boolean, editor: Editor) => {
+				// Conditions to check
+				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (markdownView) {
+					if (!checking) {
+						adapter.read(`${defaultPrefix}/${this.settings.currentTheme}`).then(content => {
+							new PreviewModal(this.app, solveHtml(markdownParser.render(editor.getValue()), content), editor.getValue(), themes, this.settings.currentTheme, adapter).open();
+						});
+					}
+					// This command will only show up in Command Palette when the check function returns true
+					return true;
+				}
+			}
 		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
@@ -91,14 +105,61 @@ export default class MyPlugin extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
+class PreviewModal extends Modal {
+	html: string;
+	raw: string;
+	themes: Record<string, string>;
+	defaultTheme: string;
+	adapter: FileSystemAdapter;
+	constructor(app: App, html: string, raw: string, themes: Record<string, string>, defaultTheme: string, adapter:FileSystemAdapter) {
 		super(app);
+		this.html = html;
+		this.raw = raw;
+		this.themes = themes;
+		this.defaultTheme = defaultTheme;
+		this.adapter = adapter
 	}
 
 	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
+		const {contentEl, titleEl} = this;
+		titleEl.innerHTML = '样式预览';
+		const settingDiv = contentEl.createEl('div');
+		const previewDiv = contentEl.createEl('div');
+		new Setting(settingDiv)
+		.setName('主题选择')
+		.setDesc('预览和复制时使用的主题')
+		.addDropdown(dropdown => {
+			dropdown.addOptions(this.themes);
+				dropdown.setValue(this.defaultTheme);
+				dropdown.onChange(async (value) => {
+					this.adapter.read(`${defaultPrefix}/${value}`).then(content => {
+						this.html = solveHtml(markdownParser.render(this.raw), content);
+						// update
+						previewDiv.innerHTML = `<div class="content">
+						<div>${this.html}</div>
+					</div>`;
+					}).catch(error => {
+						console.log(error);
+					});
+				});
+		})
+		.addButton(btn => {
+			btn.setButtonText('复制');
+			btn.onClick(async () => {
+				try {
+					navigator.clipboard.writeText(this.html);
+					new Notice('复制成功');
+				} catch (error) {
+					new Notice('复制失败');
+				}
+			})
+		})
+		
+		previewDiv.innerHTML = `<div class="content">
+			<div>${this.html}</div>
+		</div>`;
+		contentEl.append(settingDiv);
+		contentEl.append(previewDiv);
 	}
 
 	onClose() {
@@ -107,28 +168,30 @@ class SampleModal extends Modal {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+class SettingTab extends PluginSettingTab {
+	plugin: MarkdownNicePlugin;
+	themes: Record<string, string>;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, themes: Record<string, string>, plugin: MarkdownNicePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+		this.themes = themes
 	}
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
-
+    containerEl.createEl("h2", { text: "插件设置" });
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+			.setName('主题选择')
+			.setDesc('预览和复制时使用的主题')
+			.addDropdown(dropdown => {
+				dropdown.addOptions(this.themes);
+				dropdown.setValue(this.plugin.settings.currentTheme);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.currentTheme = value;
+					this.plugin.saveSettings();
+				});
+			})
 	}
 }
