@@ -8,7 +8,7 @@ interface MarkdownNiceSettings {
 }
 const defaultPrefix = '.obsidian/plugins/obsidian-markdown-nice-plugin/theme/';
 const DEFAULT_SETTINGS: MarkdownNiceSettings = {
-	currentTheme: `${defaultPrefix}/default.css`
+	currentTheme: 'default.css'
 }
 
 export default class MarkdownNicePlugin extends Plugin {
