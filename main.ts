@@ -11,6 +11,12 @@ const DEFAULT_SETTINGS: MarkdownNiceSettings = {
 	currentTheme: 'default.css'
 }
 
+const removeFrontmatter =  (content: string): string =>  {
+	const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n/;
+  return content.replace(frontmatterRegex, '');
+}
+
+
 export default class MarkdownNicePlugin extends Plugin {
 	settings: MarkdownNiceSettings;
 
@@ -55,7 +61,7 @@ export default class MarkdownNicePlugin extends Plugin {
 					if (!checking) {
 						try {
 							adapter.read(`${defaultPrefix}/${this.settings.currentTheme}`).then(content => {
-								navigator.clipboard.writeText(solveHtml(markdownParser.render(editor.getValue()), content));
+								navigator.clipboard.writeText(solveHtml(removeFrontmatter(markdownParser.render(editor.getValue())), content));
 								new Notice('复制成功');
 							}).catch(error => {
 								console.log(error);
@@ -82,7 +88,8 @@ export default class MarkdownNicePlugin extends Plugin {
 				if (markdownView) {
 					if (!checking) {
 						adapter.read(`${defaultPrefix}/${this.settings.currentTheme}`).then(content => {
-							new PreviewModal(this.app, solveHtml(markdownParser.render(editor.getValue()), content), editor.getValue(), themes, this.settings.currentTheme, adapter).open();
+							const html = removeFrontmatter(editor.getValue());
+							new PreviewModal(this.app, solveHtml(markdownParser.render(html), content), html, themes, this.settings.currentTheme, adapter).open();
 						});
 					}
 					// This command will only show up in Command Palette when the check function returns true
