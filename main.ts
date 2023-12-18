@@ -16,6 +16,21 @@ const removeFrontmatter =  (content: string): string =>  {
   return content.replace(frontmatterRegex, '');
 }
 
+const copy = (html: string): void => {
+	const blob = new Blob([html], {type: 'text/html'});
+	const blobText = new Blob([html], {type: 'text/plain'});
+	try {
+		navigator.clipboard.write([
+			new ClipboardItem({
+				[blob.type]: blob,
+				[blobText.type]: blobText
+			})
+		]);
+	} catch (error) {
+		console.log(error)
+	}
+}
+
 
 export default class MarkdownNicePlugin extends Plugin {
 	settings: MarkdownNiceSettings;
@@ -61,7 +76,22 @@ export default class MarkdownNicePlugin extends Plugin {
 					if (!checking) {
 						try {
 							adapter.read(`${defaultPrefix}/${this.settings.currentTheme}`).then(content => {
-								navigator.clipboard.writeText(solveHtml(removeFrontmatter(markdownParser.render(editor.getValue())), content));
+								// // 创建一个包含 HTML 内容的 DataTransfer 对象
+								const html = solveHtml(markdownParser.render(removeFrontmatter(editor.getValue())), content);
+								// const blob = new Blob([html], {type: 'text/html'});
+								// const blobText = new Blob([html], {type: 'text/plain'});
+								// try {
+								// 	navigator.clipboard.write([
+								// 		new ClipboardItem({
+								// 			[blob.type]: blob,
+								// 			[blobText.type]: blobText
+								// 		})
+								// 	]);
+								// } catch (error) {
+								// 	console.log(error)
+								// }
+								copy(html);
+								// navigator.clipboard.writeText(solveHtml(removeFrontmatter(markdownParser.render(editor.getValue())), content));
 								new Notice('复制成功');
 							}).catch(error => {
 								console.log(error);
@@ -154,7 +184,8 @@ class PreviewModal extends Modal {
 			btn.setButtonText('复制');
 			btn.onClick(async () => {
 				try {
-					navigator.clipboard.writeText(this.html);
+					// navigator.clipboard.writeText(this.html);
+					copy(this.html);
 					new Notice('复制成功');
 				} catch (error) {
 					new Notice('复制失败');
