@@ -689,12 +689,14 @@ hue-6-2: #e6c07b
  * 背景色 background: gray;
  */
 #nice .multiquote-1 {
-    /* 注：请在大括号内改写！！！ */
-    border-left: none;
+    /* 注：请在大括号内改写！！！ */    
+    /* border-left: none; */
     padding: 1em;
     border-radius: 8px;
     background: #f7f7f7;
+    /* background: #3a2be0; */
     margin: 1em 1px;
+    border-left: 3px solid rgba(58, 43, 224, 0.6);
 }
 
 /* 一级引用文字 */
