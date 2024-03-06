@@ -1,6 +1,6 @@
 import juice from 'juice';
 export const solveHtml = (html, style) => {
-  html = `<div id="nice">${html}</div>`
+  html = `<section id="nice">${html}</section>`
   html = html.replace(/<mjx-container (class="inline.+?)<\/mjx-container>/g, "<span $1</span>");
   html = html.replace(/\s<span class="inline/g, '&nbsp;<span class="inline');
   html = html.replace(/svg><\/span>\s/g, "svg></span>&nbsp;");
